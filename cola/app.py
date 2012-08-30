@@ -184,6 +184,7 @@ def parse_args(context):
                     'classic',
                     'config',
                     'dag',
+                    'dash',
                     'fetch',
                     'grep',
                     'pull',
@@ -315,6 +316,10 @@ def main(context):
     elif context == 'config':
         from cola.prefs import preferences
         ctl = preferences()
+        view = ctl.view
+    elif context == 'dash':
+        from cola.dash import dashboard
+        ctl = dashboard()
         view = ctl.view
     elif context == 'fetch':
         # TODO: the calls to update_status() can be done asynchronously
