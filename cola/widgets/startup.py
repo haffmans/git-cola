@@ -12,6 +12,7 @@ from PyQt4.QtCore import Qt
 from PyQt4.QtCore import SIGNAL
 
 from cola import core
+from cola import dash
 from cola import git
 from cola import guicmds
 from cola import settings
@@ -57,31 +58,11 @@ class StartupDialog(QtGui.QDialog):
         self._bookmark_label = QtGui.QLabel(self.tr('Select Repository...'))
         self._bookmark_label.setAlignment(Qt.AlignCenter)
 
-        self._bookmark_model = QtGui.QStandardItemModel()
+        self._dashboard_model = dash.model.DashboardModel()
+        self._bookmark_list = dash.view.DashboardView(self._dashboard_model, self)
+        self._dashboard = dash.controller.DashboardController(self._dashboard_model, self._bookmark_list)
 
-        item = QtGui.QStandardItem('Select manually...')
-        item.setEditable(False)
-        self._bookmark_model.appendRow(item)
-
-        added = set()
-        all_repos = self.model.bookmarks + self.model.recent
-
-        for repo in all_repos:
-            if repo in added:
-                continue
-            added.add(repo)
-            item = QtGui.QStandardItem(repo)
-            item.setEditable(False)
-            self._bookmark_model.appendRow(item)
-
-        selection_mode = QtGui.QAbstractItemView.SingleSelection
-
-        self._bookmark_list = QtGui.QListView()
-        self._bookmark_list.setSelectionMode(selection_mode)
-        self._bookmark_list.setAlternatingRowColors(True)
-        self._bookmark_list.setModel(self._bookmark_model)
-
-        if not all_repos:
+        if (len(self._dashboard_model.repos) == 0):
             self._bookmark_label.setMinimumHeight(1)
             self._bookmark_list.setMinimumHeight(1)
             self._bookmark_label.hide()
@@ -99,7 +80,7 @@ class StartupDialog(QtGui.QDialog):
         qtutils.connect_button(self._close_btn, self.reject)
 
         self.connect(self._bookmark_list,
-                     SIGNAL('activated(const QModelIndex &)'),
+                     SIGNAL('open(const QString &)'),
                      self._open_bookmark)
 
 
@@ -166,13 +147,10 @@ class StartupDialog(QtGui.QDialog):
             self._gitdir = upath
             self.accept()
 
-    def _open_bookmark(self, index):
-        if(index.row() == 0):
-            self._open()
-        else:
-            self._gitdir = unicode(self._bookmark_model.data(index).toString())
-            if self._gitdir:
-                self.accept()
+    def _open_bookmark(self, directory):
+        self._gitdir = unicode(directory)
+        if self._gitdir:
+            self.accept()
 
     def _get_selected_bookmark(self):
         selected = self._bookmark_list.selectedIndexes()
