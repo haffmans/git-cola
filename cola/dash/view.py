@@ -13,18 +13,18 @@ from cola.widgets import standard
 class StatusWidget(standard.Widget):
     def __init__(self, repo, parent=None):
         standard.Widget.__init__(self, parent=parent)
+        repo.add_observer(repo.message_updated, self.update)
+
+        self._repo = repo
 
         self._path = QtGui.QLabel()
-        self._path.setText("<b>" + repo.path + "</b>")
+        self._path.setText("<b>" + repo.directory + "</b>")
 
         self._branch = QtGui.QLabel()
-        self._branch.setText(repo.branch)
 
         self._ahead = QtGui.QLabel()
-        color = "#00ff00" if repo.ahead > 0 else "#0000ff" if repo.ahead == 0 else "#ff0000"
-        aheadstr = ('%+d' % repo.ahead)
-        self._ahead.setText("<b><font color=\"" + color + "\">" + aheadstr + "</font></b>")
-        print aheadstr
+
+        self._upstream = QtGui.QLabel()
 
         self._layt = QtGui.QHBoxLayout()
         self._layt.setMargin(defs.margin)
@@ -32,7 +32,17 @@ class StatusWidget(standard.Widget):
         self._layt.addWidget(self._path)
         self._layt.addWidget(self._branch)
         self._layt.addWidget(self._ahead)
+        self._layt.addWidget(self._upstream)
         self.setLayout(self._layt)
+
+        self.update()
+
+    def update(self):
+        self._path.setText("<b>" + self._repo.directory + "</b>")
+        color = "#80ff80" if self._repo.diff > 0 else "#8080ff" if self._repo.diff == 0 else "#ff8080"
+        aheadstr = ('%+d' % self._repo.diff) if self._repo.diff != 0 else '0'
+        self._ahead.setText("<b><font color=\"" + color + "\">" + aheadstr + "</font></b>")
+        self._upstream.setText(self._repo.upstream)
 
 class DashboardView(standard.Widget):
     def __init__(self, model, parent=None):

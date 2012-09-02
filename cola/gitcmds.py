@@ -384,6 +384,34 @@ def untrack_paths(args, head='HEAD'):
     return git.update_index('--', force_remove=True,
                             with_status=True, *set(args))
 
+def head_tracking_status():
+    data = git.status(porcelain=True, b=True).split('\0')[0]
+    # No need to do full refspec-matching: we can safely assume names match specs,
+    # and do not contain '..' sequence. It's safe to go from there.
+    p = re.compile(r"""
+        [#][#]\s
+        (?P<head>            # Start HEAD branch match
+            ((?!\.\.|\s).)+  # Any character as long as there's no '..' or space
+        )
+        (\.\.\.                  # '...' separator
+          (?P<upstream>      # Upstream branch - same pattern as above
+            ((?!\.\.|\s).)+  # Any character as long as there's no '..' or space
+          )
+          (\s\[                           # Status difference start
+              (?P<status>ahead|behind)\s  # 'head' is ahead/behind 'upstream'
+              (?P<amount>\d)+\]           # By N commits
+          )?                              # Status is optional
+        )?                                # Upstream is optional
+    """, re.VERBOSE)
+    m = p.match(data);
+    return {
+      'head'    : m.group('head') if m.group('head') != None else '',
+      'upstream': m.group('upstream') if m.group('upstream') != None else '',
+      'status'  : m.group('status') if m.group('status') != None else 'ahead',
+      'amount'  : m.group('amount') if m.group('amount') != None else 0,
+    }
+
+
 
 def worktree_state(head='HEAD'):
     """Return a tuple of files in various states of being
