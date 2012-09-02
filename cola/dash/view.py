@@ -56,10 +56,15 @@ class DashboardView(standard.Widget):
 
         self._layt = QtGui.QVBoxLayout()
 
-        for repo in model.repos:
-            self._layt.addWidget(StatusWidget(repo, self))
+        model.add_observer(model.message_added_row, self.add_row)
+
+        for i in range(0, len(self.model.repos) - 1):
+            add_row(self, i)
 
         self.setLayout(self._layt)
+
+    def add_row(self, index):
+        self._layt.addWidget(StatusWidget(self.model.repos[index], self))
 
     def showEvent(self, event):
         self.shown.emit()

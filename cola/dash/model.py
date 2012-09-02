@@ -1,13 +1,17 @@
 from cola import observable
 
 class DashboardModel(observable.Observable):
+    message_about_to_add_row = 'about_to_add_row'
+    message_added_row = 'added_row'
 
     def __init__(self):
         observable.Observable.__init__(self)
         self.repos = list()
-        self.repos.append(DashboardRepo('/dev/p1'))
-        self.repos.append(DashboardRepo('/dev/p2'))
-        self.repos.append(DashboardRepo('/dev/p3'))
+
+    def add_repo(self, directory):
+        self.notify_observers(DashboardModel.message_about_to_add_row)
+        self.repos.append(DashboardRepo(directory))
+        self.notify_observers(DashboardModel.message_added_row, len(self.repos)-1)
 
 
 class DashboardRepo(observable.Observable):

@@ -2,11 +2,16 @@ from cola.ctrl import Controller
 
 from cola import git
 from cola import gitcmds
+from cola import settings
 from PyQt4.QtCore import QTimer
 
 class DashboardController(Controller):
     def __init__(self, model, view):
         Controller.__init__(self, model, view)
+        self.settingsModel = settings.Settings()
+        for bookmark in self.settingsModel.bookmarks:
+            self.model.add_repo(bookmark)
+
         view.shown.connect(self.update_all)
 
         # Initialize the git command object
