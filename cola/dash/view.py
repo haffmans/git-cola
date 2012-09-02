@@ -3,6 +3,7 @@ import os
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 from PyQt4.QtCore import SIGNAL
+from PyQt4.QtCore import QTimer
 
 from cola import qtutils
 from cola import gitcfg
@@ -45,10 +46,13 @@ class StatusWidget(standard.Widget):
         self._upstream.setText(self._repo.upstream)
 
 class DashboardView(standard.Widget):
+    shown = QtCore.pyqtSignal()
+
     def __init__(self, model, parent=None):
         standard.Widget.__init__(self, parent=parent)
         self.setWindowTitle(self.tr('Dashboard'))
         self.resize(600, 360)
+        self.model = model
 
         self._layt = QtGui.QVBoxLayout()
 
@@ -56,6 +60,9 @@ class DashboardView(standard.Widget):
             self._layt.addWidget(StatusWidget(repo, self))
 
         self.setLayout(self._layt)
+
+    def showEvent(self, event):
+        self.shown.emit()
 
 
 if __name__ == "__main__":
