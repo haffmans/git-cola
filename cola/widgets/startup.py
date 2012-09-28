@@ -60,7 +60,6 @@ class StartupDialog(QtGui.QDialog):
 
         self._dashboard_model = dash.model.DashboardModel()
         self._bookmark_list = dash.view.DashboardView(self._dashboard_model, self)
-        self._dashboard = dash.controller.DashboardController(self._dashboard_model, self._bookmark_list)
 
         if (len(self._dashboard_model.repos) == 0):
             self._bookmark_label.setMinimumHeight(1)
