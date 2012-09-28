@@ -10,7 +10,6 @@ import subprocess
 import sys
 import time
 
-from cola import git
 from cola import core
 from cola import resources
 from cola.compat import hashlib
@@ -52,17 +51,6 @@ def add_parents(path_entry_set):
                 path_entry_set.add(parent_dir)
                 parent_dir = dirname(parent_dir)
     return path_entry_set
-
-
-def run_cmd(command):
-    """
-    Run arguments as a command and return output.
-
-    >>> run_cmd(["echo", "hello", "world"])
-    'hello world'
-
-    """
-    return git.Git.execute(command)
 
 
 def ident_file_type(filename):
@@ -269,7 +257,12 @@ def word_wrap(text, tabwidth, limit):
 
     """
     lines = []
+    # Acked-by:, Signed-off-by:, Helped-by:, etc.
+    special_tag_rgx = re.compile('^[a-zA-Z-]+:')
     for line in text.split('\n'):
+        if special_tag_rgx.match(line):
+            lines.append(line)
+            continue
         linelen = 0
         words = []
         for idx, word in enumerate(line.split(' ')):
@@ -485,7 +478,7 @@ def start_command(args, cwd=None, shell=False, add_env=None,
 
 
 def run_command(args, cwd=None, shell=False, add_env=None,
-                flag_error=True):
+                flag_error=False):
     """Run the given command to completion, and return its results.
 
     This provides a simpler interface to the subprocess module.

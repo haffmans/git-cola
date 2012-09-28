@@ -8,12 +8,13 @@ from PyQt4.QtCore import Qt
 from PyQt4.QtCore import SIGNAL
 
 import cola
+from cola import cmds
 from cola import core
 from cola import gitcmds
 from cola import guicmds
 from cola import merge
-from cola import signals
 from cola import gitcfg
+from cola import prefs
 from cola import qtutils
 from cola import qtcompat
 from cola import qt
@@ -27,8 +28,7 @@ from cola.classic import cola_classic
 from cola.classic import classic_widget
 from cola.dag import git_dag
 from cola.git import git
-from cola.prefs import PreferencesModel
-from cola.prefs import preferences
+from cola.interaction import Interaction
 from cola.qt import create_button
 from cola.qt import create_dock
 from cola.qt import create_menu
@@ -36,9 +36,6 @@ from cola.qtutils import add_action
 from cola.qtutils import connect_action
 from cola.qtutils import connect_action_bool
 from cola.qtutils import connect_button
-from cola.qtutils import emit
-from cola.qtutils import log
-from cola.qtutils import relay_signal
 from cola.qtutils import tr
 from cola.widgets import cfgactions
 from cola.widgets import editremotes
@@ -64,7 +61,7 @@ class MainView(MainWindow):
         # Default size; this is thrown out when save/restore is used
         self.resize(987, 610)
         self.model = model
-        self.prefs_model = prefs_model = PreferencesModel()
+        self.prefs_model = prefs_model = prefs.PreferencesModel()
 
         # Internal field used by import/export_state().
         # Change this whenever dockwidgets are removed.
@@ -115,17 +112,12 @@ class MainView(MainWindow):
         titlebar.add_corner_widget(self.position_label)
 
         self.commitmsgeditor = CommitMessageEditor(model, self)
-        relay_signal(self, self.commitmsgeditor, SIGNAL(signals.amend_mode))
-        relay_signal(self, self.commitmsgeditor, SIGNAL(signals.signoff))
-        relay_signal(self, self.commitmsgeditor,
-                     SIGNAL(signals.load_previous_message))
         self.commitdockwidget.setWidget(self.commitmsgeditor)
 
         # "Console" widget
         self.logwidget = LogWidget()
         self.logdockwidget = create_dock('Console', self)
         self.logdockwidget.setWidget(self.logwidget)
-        cola.notifier().connect(signals.log_cmd, self.logwidget.log)
 
         # "Diff Viewer" widget
         self.diffdockwidget = create_dock('Diff', self)
@@ -134,35 +126,37 @@ class MainView(MainWindow):
 
         # All Actions
         self.menu_unstage_all = add_action(self,
-                'Unstage All', emit(self, signals.unstage_all))
+                'Unstage All', cmds.run(cmds.UnstageAll))
         self.menu_unstage_all.setIcon(qtutils.icon('remove.svg'))
 
         self.menu_unstage_selected = add_action(self,
-                'Unstage From Commit', emit(self, signals.unstage_selected))
+                'Unstage From Commit', cmds.run(cmds.UnstageSelected))
         self.menu_unstage_selected.setIcon(qtutils.icon('remove.svg'))
 
         self.menu_show_diffstat = add_action(self,
-                'Diffstat', emit(self, signals.diffstat), 'Alt+D')
+                'Diffstat', cmds.run(cmds.Diffstat), 'Alt+D')
 
         self.menu_stage_modified = add_action(self,
                 'Stage Changed Files To Commit',
-                emit(self, signals.stage_modified), 'Alt+A')
+                cmds.run(cmds.StageModified), 'Alt+A')
         self.menu_stage_modified.setIcon(qtutils.icon('add.svg'))
 
         self.menu_stage_untracked = add_action(self,
-                'Stage All Untracked', emit(self, signals.stage_untracked), 'Alt+U')
+                'Stage All Untracked', cmds.run(cmds.StageUntracked), 'Alt+U')
         self.menu_stage_untracked.setIcon(qtutils.icon('add.svg'))
 
         self.menu_export_patches = add_action(self,
                 'Export Patches...', guicmds.export_patches, 'Alt+E')
         self.menu_preferences = add_action(self,
-                'Preferences', lambda: preferences(model=prefs_model),
+                'Preferences', self.preferences,
                 QtGui.QKeySequence.Preferences, 'Ctrl+O')
 
         self.menu_edit_remotes = add_action(self,
                 'Edit Remotes...', lambda: editremotes.edit().exec_())
         self.menu_rescan = add_action(self,
-                'Rescan', emit(self, signals.rescan_and_refresh), 'Ctrl+R')
+                cmds.RescanAndRefresh.NAME,
+                cmds.run(cmds.RescanAndRefresh),
+                cmds.RescanAndRefresh.SHORTCUT)
         self.menu_rescan.setIcon(qtutils.reload_icon())
 
         self.menu_browse_recent = add_action(self,
@@ -182,7 +176,7 @@ class MainView(MainWindow):
         self.menu_manage_bookmarks = add_action(self,
                 'Bookmarks...', manage_bookmarks)
         self.menu_grep = add_action(self,
-                'Grep', guicmds.grep)
+                'Grep', guicmds.grep, 'Ctrl+G')
         self.menu_merge_local = add_action(self,
                 'Merge...', merge.local_merge)
 
@@ -218,10 +212,10 @@ class MainView(MainWindow):
 
         self.menu_visualize_current = add_action(self,
                 'Visualize Current Branch...',
-                emit(self, signals.visualize_current))
+                cmds.run(cmds.VisualizeCurrent))
         self.menu_visualize_all = add_action(self,
                 'Visualize All Branches...',
-                emit(self, signals.visualize_all))
+                cmds.run(cmds.VisualizeAll))
         self.menu_search_commits = add_action(self,
                 'Search...', search)
         self.menu_browse_branch = add_action(self,
@@ -230,7 +224,7 @@ class MainView(MainWindow):
                 'Browse Other Branch...', guicmds.browse_other)
         self.menu_load_commitmsg_template = add_action(self,
                 'Get Commit Message Template',
-                emit(self, signals.load_commit_template))
+                cmds.run(cmds.LoadCommitTemplate))
         self.menu_help_about = add_action(self,
                 'About', launch_about_dialog)
 
@@ -274,7 +268,6 @@ class MainView(MainWindow):
             self.addAction(status_tree.up)
             self.addAction(status_tree.down)
             self.addAction(status_tree.process_selection)
-            self.addAction(status_tree.launch_difftool)
 
         # Create the application menu
         self.menubar = QtGui.QMenuBar(self)
@@ -407,8 +400,7 @@ class MainView(MainWindow):
         self.show_cursor_position(1, 0)
 
         # Add button callbacks
-        connect_button(self.rescan_button,
-                       emit(self, signals.rescan_and_refresh))
+        connect_button(self.rescan_button, cmds.run(cmds.RescanAndRefresh))
         connect_button(self.fetch_button, remote.fetch)
         connect_button(self.push_button, remote.push)
         connect_button(self.pull_button, remote.pull)
@@ -430,12 +422,24 @@ class MainView(MainWindow):
         self._config_task = None
         self.install_config_actions()
 
+        self.dockwidgets = (
+                self.logdockwidget,
+                self.commitdockwidget,
+                self.statusdockwidget,
+                self.diffdockwidget,
+                self.actionsdockwidget,
+        )
         # Restore saved settings
         qtutils.apply_state(self)
 
         self.statusdockwidget.widget().setFocus()
 
-        log(0, version.git_version_str() + '\ncola version ' + version.version())
+        # Route command output here
+        Interaction.log_status = self.logwidget.log_status
+        Interaction.log = self.logwidget.log
+
+        Interaction.log(version.git_version_str() +
+                        '\ncola version ' + version.version())
 
     # Qt overrides
     def closeEvent(self, event):
@@ -453,7 +457,7 @@ class MainView(MainWindow):
             name = os.path.basename(r)
             directory = os.path.dirname(r)
             text = u'%s %s %s' % (name, unichr(0x2192), directory)
-            menu.addAction(text, qtutils.SLOT(signals.open_repo, r))
+            menu.addAction(text, cmds.run(cmds.OpenRepo, r))
 
     # Accessors
     mode = property(lambda self: self.model.mode)
@@ -506,7 +510,7 @@ class MainView(MainWindow):
         menu = self.actions_menu
         menu.addSeparator()
         for name in names:
-            menu.addAction(name, emit(self, signals.run_config_action, name))
+            menu.addAction(name, cmds.run(cmds.RunConfigAction, name))
 
     def _update_view(self):
         self.emit(SIGNAL('update'))
@@ -534,14 +538,15 @@ class MainView(MainWindow):
             if merge_msg_hash == self.merge_message_hash:
                 return
             self.merge_message_hash = merge_msg_hash
-            cola.notifier().broadcast(signals.load_commit_message,
-                                      core.decode(merge_msg_path))
+            cmds.do(cmds.LoadCommitMessage, core.decode(merge_msg_path))
 
     def apply_state(self, state):
         """Imports data for save/restore"""
         # 1 is the widget version; change when widgets are added/removed
         MainWindow.apply_state(self, state)
         qtutils.apply_window_state(self, state, 1)
+        for widget in self.dockwidgets:
+            widget.titleBarWidget().update_tooltips()
 
     def export_state(self):
         """Exports data for save/restore"""
@@ -582,6 +587,9 @@ class MainView(MainWindow):
             self.addAction(action)
             connect_action(action, focusdock)
 
+    def preferences(self):
+        return prefs.preferences(model=self.prefs_model, parent=self)
+
     def save_archive(self):
         ref = git.rev_parse('HEAD')
         shortref = ref[:7]
@@ -591,17 +599,17 @@ class MainView(MainWindow):
         """Stage selected files, or all files if no selection exists."""
         paths = cola.selection_model().unstaged
         if not paths:
-            cola.notifier().broadcast(signals.stage_modified)
+            cmds.do(cmds.StageModified)
         else:
-            cola.notifier().broadcast(signals.stage, paths)
+            cmds.do(cmds.Stage, paths)
 
     def unstage(self):
         """Unstage selected files, or all files if no selection exists."""
         paths = cola.selection_model().staged
         if not paths:
-            cola.notifier().broadcast(signals.unstage_all)
+            cmds.do(cmds.UnstageAll)
         else:
-            cola.notifier().broadcast(signals.unstage, paths)
+            cmds.do(cmds.Unstage, paths)
 
     def dragEnterEvent(self, event):
         """Accepts drops"""
@@ -620,8 +628,7 @@ class MainView(MainWindow):
         dirs.sort()
         for d in dirs:
             patches.extend(self._gather_patches(d))
-        # Broadcast the patches to apply
-        cola.notifier().broadcast(signals.apply_patches, patches)
+        cmds.do(cmds.ApplyPatches, patches)
 
     def _gather_patches(self, path):
         """Find patches in a subdirectory"""
