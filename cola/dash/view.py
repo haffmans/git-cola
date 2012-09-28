@@ -13,90 +13,64 @@ from cola import settings
 from cola.widgets import defs
 from cola.widgets import standard
 
-class StatusWidget(standard.Widget):
-    def __init__(self, repo, parent=None):
-        standard.Widget.__init__(self, parent=parent)
-        repo.add_observer(repo.message_updated, self.update)
-
-        self._repo = repo
-
-        self._path = QtGui.QLabel()
-        self.connect(self._path, SIGNAL('linkActivated(QString)'), SIGNAL('open_repo(QString)'))
-
-        self._branch = QtGui.QLabel()
-
-        self._ahead = QtGui.QLabel()
-
-        self._upstream = QtGui.QLabel()
-
-        self._layt = QtGui.QHBoxLayout()
-        self._layt.setMargin(defs.margin)
-        self._layt.setSpacing(defs.spacing)
-        self._layt.addWidget(self._path)
-        self._layt.addWidget(self._branch)
-        self._layt.addWidget(self._ahead)
-        self._layt.addWidget(self._upstream)
-        self.setLayout(self._layt)
-
-        self.update()
-
-    def update(self):
-        self._path.setText('<a href="%s"><b>%s</b></a>' % (self._repo.directory, self._repo.directory))
-        color = "#80ff80" if self._repo.diff > 0 else "#8080ff" if self._repo.diff == 0 else "#ff8080"
-        aheadstr = ('%+d' % self._repo.diff) if self._repo.diff != 0 else '0'
-        self._ahead.setText("<b><font color=\"" + color + "\">" + aheadstr + "</font></b>")
-        self._upstream.setText(self._repo.upstream)
+class StatusTable(QtGui.QTableView):
+    def __init__(self, model, parent=None):
+        QtGui.QTableView.__init__(self, parent)
+        self.setModel(model)
+        self.verticalHeader().hide()
+        self.horizontalHeader().setResizeMode(QtGui.QHeaderView.Interactive)
+        self.horizontalHeader().setCascadingSectionResizes(False)
+        self.horizontalHeader().setStretchLastSection(True)
+        self.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
 
 class DashboardView(standard.Widget):
-    shown = QtCore.pyqtSignal()
-
     def __init__(self, model, parent=None):
         standard.Widget.__init__(self, parent=parent)
         self.setWindowTitle(self.tr('Dashboard'))
         self.resize(600, 360)
-        self.model = model
-
         self._layt = QtGui.QVBoxLayout()
 
-        model.add_observer(model.message_added_row, self.add_row)
+        self._model = model
+        self._table = StatusTable(self._model)
 
         # Init model
-        self.settingsModel = settings.Settings()
-        for bookmark in self.settingsModel.bookmarks:
-            self.model.add_repo(bookmark)
+        self._settingsModel = settings.Settings()
+        for bookmark in self._settingsModel.bookmarks:
+            self._model.add_repo(bookmark)
 
-        # Init view
-        for i in range(0, len(self.model.repos) - 1):
-            add_row(self, i)
+        # Init table
+        self.connect(self._table, SIGNAL('activated(QModelIndex)'), self.open_bookmark)
 
+        # Init layout
+        self._layt.addWidget(self._table)
         self.setLayout(self._layt)
 
         # Initialize the git command object
-        self.git = git.instance()
-        self.update_queue = list()
+        self._git = git.instance()
+        self._update_queue = list()
 
-    def add_row(self, index):
-        widget = StatusWidget(self.model.repos[index], self)
-        self.connect(widget, SIGNAL('open_repo(QString)'), SIGNAL('open(QString)'))
-        self._layt.addWidget(widget)
+    def open_bookmark(self, index):
+        directory_index = index.sibling(index.row(), 0)
+        directory = self._model.data(directory_index).toString()
+        self.emit(SIGNAL('open(QString)'), directory)
 
     def showEvent(self, event):
         # Delay-load all repos
-        del self.update_queue[:]
-        self.update_queue.extend(self.model.repos)
-        self.update_queue.reverse()
+        del self._update_queue[:]
+        self._update_queue.extend(self._model.repos)
+        self._update_queue.reverse()
         QTimer.singleShot(10, self.update_next)
 
     def set_worktree(self, repo, worktree=None):
         if (worktree == None):
             worktree = repo.directory
-        self.git.set_worktree(worktree)
-        return self.git.is_valid()
+        self._git.set_worktree(worktree)
+        return self._git.is_valid()
 
     def update_next(self):
-        if (len(self.update_queue) == 0):
+        if (len(self._update_queue) == 0):
             return
-        repo = self.update_queue.pop()
+        repo = self._update_queue.pop()
         self.update_status(repo)
         QTimer.singleShot(10, self.update_next)
 
@@ -110,7 +84,6 @@ class DashboardView(standard.Widget):
         repo.upstream = status.get('upstream')
         repo.diff = int(status.get('amount')) if status.get('status') == 'ahead' else  - int(status.get('amount'))
         repo.updated()
-
 
 if __name__ == "__main__":
     import sys
