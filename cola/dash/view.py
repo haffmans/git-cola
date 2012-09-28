@@ -21,7 +21,7 @@ class StatusWidget(standard.Widget):
         self._repo = repo
 
         self._path = QtGui.QLabel()
-        self._path.setText("<b>" + repo.directory + "</b>")
+        self.connect(self._path, SIGNAL('linkActivated(QString)'), SIGNAL('open_repo(QString)'))
 
         self._branch = QtGui.QLabel()
 
@@ -41,7 +41,7 @@ class StatusWidget(standard.Widget):
         self.update()
 
     def update(self):
-        self._path.setText("<b>" + self._repo.directory + "</b>")
+        self._path.setText('<a href="%s"><b>%s</b></a>' % (self._repo.directory, self._repo.directory))
         color = "#80ff80" if self._repo.diff > 0 else "#8080ff" if self._repo.diff == 0 else "#ff8080"
         aheadstr = ('%+d' % self._repo.diff) if self._repo.diff != 0 else '0'
         self._ahead.setText("<b><font color=\"" + color + "\">" + aheadstr + "</font></b>")
@@ -76,7 +76,9 @@ class DashboardView(standard.Widget):
         self.update_queue = list()
 
     def add_row(self, index):
-        self._layt.addWidget(StatusWidget(self.model.repos[index], self))
+        widget = StatusWidget(self.model.repos[index], self)
+        self.connect(widget, SIGNAL('open_repo(QString)'), SIGNAL('open(QString)'))
+        self._layt.addWidget(widget)
 
     def showEvent(self, event):
         # Delay-load all repos
