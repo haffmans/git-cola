@@ -84,7 +84,6 @@ class DashboardView(standard.Widget):
         self.update_queue.extend(self.model.repos)
         self.update_queue.reverse()
         QTimer.singleShot(10, self.update_next)
-        print len(self.model.repos)
 
     def set_worktree(self, repo, worktree=None):
         if (worktree == None):
