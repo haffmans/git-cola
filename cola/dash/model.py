@@ -1,5 +1,3 @@
-from cola import observable
-
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt
@@ -7,10 +5,16 @@ from PyQt4.QtCore import SIGNAL
 from PyQt4.QtCore import QVariant
 from PyQt4.QtCore import QModelIndex
 
+from cola import git
+from cola import gitcmds
+
 class DashboardModel(QtCore.QAbstractTableModel):
     def __init__(self, parent=None):
         QtCore.QAbstractTableModel.__init__(self, parent)
         self.repos = list()
+
+        # Initialize the git command object
+        self._git = git.instance()
 
     def rowCount(self, parent=QModelIndex()):
         return len(self.repos)
@@ -46,30 +50,52 @@ class DashboardModel(QtCore.QAbstractTableModel):
             return QVariant(repo.diff)
 
     def clear(self):
+        """ Remove all repositories from the model. """
         self.emit("modelAboutToBeReset()")
         self.repos = list()
         self.emit("modelReset()")
 
-    def add_repo(self, directory):
+    def add_repo(self, directory, load_status=True):
+        """ Adds a new repository to the model (by directory) and returns the row number.
+
+            The repository's data is not initialized; use update(row) to retrieve
+            the full status
+        """
         index = len(self.repos)
         self.emit(SIGNAL("rowsAboutToBeInserted(QModelIndex, int, int)"), QModelIndex(), index, index)
         self.repos.append(DashboardRepo(directory))
+        if (load_status):
+            self._load_status(self.repos[index])
+
         self.emit(SIGNAL("rowsInserted(QModelIndex, int, int)"), QModelIndex(), index, index)
+        return index
 
-class DashboardRepo(observable.Observable):
-    message_about_to_update = 'about_to_update'
-    message_updated         = 'updated'
+    def update(self, row):
+        """ Update a repository's status at the given row. """
+        if (row < 0 or row >= len(self.repos)):
+            return
+        self._load_status(self.repos[row])
+        self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex'), self.index(row, 1), self.index(row, self.columnCount()))
 
+    def _set_worktree(self, repo, worktree=None):
+        if (worktree == None):
+            worktree = repo.directory
+        self._git.set_worktree(worktree)
+        return self._git.is_valid()
+
+    def _load_status(self, repo):
+        if not self._set_worktree(repo):
+            return False
+
+        status = gitcmds.head_tracking_status()
+        repo.branch = status.get('head')
+        repo.upstream = status.get('upstream')
+        repo.diff = int(status.get('amount')) if status.get('status') == 'ahead' else  - int(status.get('amount'))
+
+class DashboardRepo:
+    """ Simple structure representing a repository's status. """
     def __init__(self, directory):
-        observable.Observable.__init__(self)
-
         self.directory = directory
         self.branch = ''
         self.upstream = ''
         self.diff = 0
-
-    def begin_update(self):
-        self.notify_observers(DashboardRepo.message_about_to_update)
-
-    def updated(self):
-        self.notify_observers(DashboardRepo.message_updated)
