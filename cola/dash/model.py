@@ -11,13 +11,13 @@ from cola import gitcmds
 class DashboardModel(QtCore.QAbstractTableModel):
     def __init__(self, parent=None):
         QtCore.QAbstractTableModel.__init__(self, parent)
-        self.repos = list()
+        self._repos = list()
 
         # Initialize the git command object
         self._git = git.instance()
 
     def rowCount(self, parent=QModelIndex()):
-        return len(self.repos)
+        return len(self._repos)
 
     def columnCount(self, parent=QModelIndex()):
         return 4 if not parent.isValid() else 0
@@ -36,7 +36,7 @@ class DashboardModel(QtCore.QAbstractTableModel):
         return QVariant()
 
     def data(self, index, role = Qt.DisplayRole):
-        repo = self.repos[index.row()]
+        repo = self._repos[index.row()]
         if (role != Qt.DisplayRole):
             return QVariant()
 
@@ -52,7 +52,7 @@ class DashboardModel(QtCore.QAbstractTableModel):
     def clear(self):
         """ Remove all repositories from the model. """
         self.emit("modelAboutToBeReset()")
-        self.repos = list()
+        del self._repos[:]
         self.emit("modelReset()")
 
     def add_repo(self, directory, load_status=True):
@@ -61,20 +61,20 @@ class DashboardModel(QtCore.QAbstractTableModel):
             The repository's data is not initialized; use update(row) to retrieve
             the full status
         """
-        index = len(self.repos)
+        index = len(self._repos)
         self.emit(SIGNAL("rowsAboutToBeInserted(QModelIndex, int, int)"), QModelIndex(), index, index)
-        self.repos.append(DashboardRepo(directory))
+        self._repos.append(DashboardRepo(directory))
         if (load_status):
-            self._load_status(self.repos[index])
+            self._load_status(self._repos[index])
 
         self.emit(SIGNAL("rowsInserted(QModelIndex, int, int)"), QModelIndex(), index, index)
         return index
 
     def update(self, row):
         """ Update a repository's status at the given row. """
-        if (row < 0 or row >= len(self.repos)):
+        if (row < 0 or row >= len(self._repos)):
             return
-        self._load_status(self.repos[row])
+        self._load_status(self._repos[row])
         self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex'), self.index(row, 1), self.index(row, self.columnCount()))
 
     def _set_worktree(self, repo, worktree=None):

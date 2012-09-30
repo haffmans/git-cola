@@ -1,4 +1,5 @@
 import os
+from collections import deque
 
 from PyQt4 import QtCore
 from PyQt4 import QtGui
@@ -43,7 +44,7 @@ class DashboardView(standard.Widget):
         self._layt.addWidget(self._table)
         self.setLayout(self._layt)
 
-        self._update_queue = list()
+        self._update_queue = deque()
 
     def open_bookmark(self, index):
         directory_index = index.sibling(index.row(), 0)
@@ -52,16 +53,14 @@ class DashboardView(standard.Widget):
 
     def showEvent(self, event):
         # Delay-load all repos
-        del self._update_queue[:]
+        self._update_queue.clear()
         self._update_queue.extend(range(self._model.rowCount()))
-        # Make "pop()" start with top row
-        self._update_queue.reverse()
         QTimer.singleShot(10, self.update_next)
 
     def update_next(self):
         if (len(self._update_queue) == 0):
             return
-        repo = self._update_queue.pop()
+        repo = self._update_queue.popleft()
         self._model.update(repo)
         QTimer.singleShot(10, self.update_next)
 
