@@ -6,6 +6,7 @@ from PyQt4.QtCore import QVariant
 from PyQt4.QtCore import QModelIndex
 
 from cola import git
+from cola import gitcfg
 from cola import gitcmds
 
 class DashboardModel(QtCore.QAbstractTableModel):
@@ -118,6 +119,7 @@ class DashboardModel(QtCore.QAbstractTableModel):
         if not self._set_worktree(repo):
             return False
 
+        gitcfg.instance().reset()
         status = gitcmds.head_tracking_status()
         repo.branch = status.get('head')
         repo.upstream = status.get('upstream')

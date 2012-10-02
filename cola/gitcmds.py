@@ -404,9 +404,17 @@ def head_tracking_status():
         )?                                # Upstream is optional
     """, re.VERBOSE)
     m = p.match(data);
+
+    # If amount == 0, upstream is not given in output -- get it manually
+    upstream = ''
+    if (m.group('upstream') is not None and m.group('amount') is not None and m.group('amount') != '0'):
+        upstream = m.group('upstream')
+    elif (m.group('amount') is None or m.group('amount') == 0):
+        upstream = tracked_branch()
+
     return {
       'head'    : m.group('head') if m.group('head') != None else '',
-      'upstream': m.group('upstream') if m.group('upstream') != None else '',
+      'upstream': upstream,
       'status'  : m.group('status') if m.group('status') != None else 'ahead',
       'amount'  : m.group('amount') if m.group('amount') != None else 0,
     }
