@@ -385,7 +385,7 @@ def untrack_paths(args, head='HEAD'):
                             with_status=True, *set(args))
 
 def head_tracking_status():
-    data = git.status(porcelain=True, b=True).split('\0')[0]
+    data = git.status(porcelain=True, b=True, z=True).split('\0')[0]
     # No need to do full refspec-matching: we can safely assume names match specs,
     # and do not contain '..' sequence. It's safe to go from there.
     p = re.compile(r"""
@@ -399,7 +399,7 @@ def head_tracking_status():
           )
           (\s\[                           # Status difference start
               (?P<status>ahead|behind)\s  # 'head' is ahead/behind 'upstream'
-              (?P<amount>\d)+\]           # By N commits
+              (?P<amount>\d+)\]           # By N commits
           )?                              # Status is optional
         )?                                # Upstream is optional
     """, re.VERBOSE)
