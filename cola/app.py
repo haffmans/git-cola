@@ -315,11 +315,10 @@ def main(context):
         view = cola_classic(update=False)
     elif context == 'config':
         from cola.prefs import preferences
-        ctl = preferences()
+        view = preferences()
     elif context == 'dash':
         from cola.dash import dashboard
-        ctl = dashboard()
-        view = ctl.view
+        view = dashboard()
     elif context == 'fetch':
         # TODO: the calls to update_status() can be done asynchronously
         # by hooking into the message_updated notification.
