@@ -110,7 +110,7 @@ class DashboardModel(QtCore.QAbstractTableModel):
         self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex'), self.index(row, 1), self.index(row, self.columnCount()))
 
     def _set_worktree(self, repo, worktree=None):
-        if (worktree == None):
+        if (worktree is None):
             worktree = repo.directory
         self._git.set_worktree(worktree)
         return self._git.is_valid()

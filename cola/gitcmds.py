@@ -413,10 +413,10 @@ def head_tracking_status():
         upstream = tracked_branch()
 
     return {
-      'head'    : m.group('head') if m.group('head') != None else '',
+      'head'    : m.group('head') if m.group('head') is not None else '',
       'upstream': upstream,
-      'status'  : m.group('status') if m.group('status') != None else 'ahead',
-      'amount'  : m.group('amount') if m.group('amount') != None else 0,
+      'status'  : m.group('status') if m.group('status') is not None else 'ahead',
+      'amount'  : m.group('amount') if m.group('amount') is not None else 0,
     }
 
 
