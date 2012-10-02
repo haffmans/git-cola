@@ -37,17 +37,48 @@ class DashboardModel(QtCore.QAbstractTableModel):
 
     def data(self, index, role = Qt.DisplayRole):
         repo = self._repos[index.row()]
-        if (role != Qt.DisplayRole):
+
+        if (not index.isValid()):
             return QVariant()
 
-        if (index.column() == 0):
-            return QVariant(repo.directory)
-        if (index.column() == 1):
-            return QVariant(repo.branch)
-        if (index.column() == 2):
-            return QVariant(repo.upstream)
-        if (index.column() == 3):
-            return QVariant(repo.diff)
+        if (role == Qt.DisplayRole):
+            if (index.column() == 0):
+                return QVariant(repo.directory)
+            elif (index.column() == 1):
+                return QVariant(repo.branch)
+            elif (index.column() == 2):
+                return QVariant(repo.upstream)
+            elif (index.column() == 3):
+                return QVariant(repo.diff)
+
+        elif (role == Qt.FontRole):
+            font = QtGui.QFont()
+            if (index.column() == 0):
+                font.setBold(True)
+            elif (index.column() == 1):
+                pass
+            elif (index.column() == 2):
+                pass
+            elif (index.column() == 3):
+                font.setBold(True)
+            return font
+
+        elif (role == Qt.ForegroundRole):
+            if (index.column() == 1):
+                pass
+            if (index.column() == 2):
+                pass
+            if (index.column() == 3):
+                if (repo.diff == '...'):
+                    return QVariant()
+                elif (repo.diff > 0):
+                    return QtGui.QBrush(Qt.green)
+                elif (repo.diff < 0):
+                    return QtGui.QBrush(Qt.red)
+                else:
+                    return QtGui.QBrush(Qt.yellow)
+
+        return QVariant()
 
     def clear(self):
         """ Remove all repositories from the model. """
@@ -96,6 +127,6 @@ class DashboardRepo:
     """ Simple structure representing a repository's status. """
     def __init__(self, directory):
         self.directory = directory
-        self.branch = ''
-        self.upstream = ''
-        self.diff = 0
+        self.branch = '...'
+        self.upstream = '...'
+        self.diff = '...'

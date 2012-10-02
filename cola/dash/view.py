@@ -20,6 +20,7 @@ class StatusTable(QtGui.QTableView):
         self.horizontalHeader().setCascadingSectionResizes(False)
         self.horizontalHeader().setStretchLastSection(True)
         self.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.setAlternatingRowColors(True)
 
 class DashboardView(standard.Widget):
     def __init__(self, model, parent=None):
