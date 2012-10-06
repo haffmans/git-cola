@@ -52,6 +52,20 @@ class DashboardModel(QtCore.QAbstractTableModel):
             elif (index.column() == 3):
                 return QVariant(repo.diff)
 
+        elif (role == Qt.ToolTipRole):
+            if (index.column() == 0):
+                return QVariant(repo.directory)
+            elif (index.column() == 1):
+                return QVariant(repo.branch)
+            elif (index.column() == 2):
+                return QVariant(repo.upstream)
+            elif (index.column() == 3):
+                if (repo.diff > 0):
+                    return QVariant(str(repo.diff) + " commits ahead of upstream")
+                elif (repo.diff < 0):
+                    return QVariant(str(repo.diff) + " commits behind upstream")
+                return QVariant("Not ahead of or behind upstream")
+
         elif (role == Qt.FontRole):
             font = QtGui.QFont()
             if (index.column() == 0):
