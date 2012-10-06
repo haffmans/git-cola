@@ -19,12 +19,13 @@ from cola import settings
 from cola import qtutils
 from cola import utils
 from cola.widgets import defs
+from cola.widgets.standard import Dialog
 
-class StartupDialog(QtGui.QDialog):
+class StartupDialog(Dialog):
     """Provides a GUI to Open or Clone a git repository."""
 
     def __init__(self, parent=None):
-        QtGui.QDialog.__init__(self, parent)
+        Dialog.__init__(self, parent)
         self.setWindowTitle(self.tr('git-cola'))
         self._gitdir = None
 
@@ -82,6 +83,33 @@ class StartupDialog(QtGui.QDialog):
                      SIGNAL('open(const QString &)'),
                      self._open_bookmark)
 
+        self.widget_version = 1
+        qtutils.apply_state(self)
+
+    def closeEvent(self, event):
+        s = settings.Settings()
+        qtutils.save_state(self, handler=s)
+        Dialog.closeEvent(self, event)
+
+    def done(self, r):
+        # Save settings prior to closing; closeEvent is filtered on accept/reject
+        s = settings.Settings()
+        qtutils.save_state(self, handler=s)
+        Dialog.done(self, r)
+
+    def apply_state(self, state):
+        """Imports data for save/restore"""
+        # 1 is the widget version; change when widgets are added/removed
+        Dialog.apply_state(self, state)
+        if (state['bookmark_list']):
+            self._bookmark_list.apply_state(state['bookmark_list'])
+
+    def export_state(self):
+        """Exports data for save/restore"""
+        state = Dialog.export_state(self)
+        if (self._bookmark_list.isVisible()):
+            state['bookmark_list'] = self._bookmark_list.export_state()
+        return state
 
     def find_git_repo(self):
         """

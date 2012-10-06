@@ -79,6 +79,17 @@ class DashboardView(standard.Widget):
 
         self._update_queue = deque()
 
+    def apply_state(self, state):
+        if (state['horizontalHeader']):
+            self._table.horizontalHeader().restoreState(
+                QtCore.QByteArray.fromBase64(str(state['horizontalHeader']))
+            )
+
+    def export_state(self):
+        return {
+            'horizontalHeader': unicode(self._table.horizontalHeader().saveState().toBase64().data())
+        }
+
     def open_bookmark(self, index):
         directory_index = index.sibling(index.row(), 0)
         directory = self._model.data(directory_index).toString()
