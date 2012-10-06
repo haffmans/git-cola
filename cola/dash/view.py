@@ -28,7 +28,7 @@ class StatusTable(QtGui.QTableView):
 
     def resizeEvent(self, event):
         header = self.horizontalHeader();
-        currentWidth = sum([header.sectionSize(i) for i in range(header.count())]) + (self.frameWidth())
+        currentWidth = sum([header.sectionSize(i) for i in range(header.count())]) + (2*self.frameWidth())
 
         QtGui.QTableView.resizeEvent(self, event)
 
@@ -37,9 +37,9 @@ class StatusTable(QtGui.QTableView):
 
         diff = event.oldSize().width() - event.size().width()
 
-        if (currentWidth >= event.size().width() and diff < 0):
-            return
-        if (diff > 0 and currentWidth - diff < event.size().width()):
+        if ((currentWidth >= event.size().width() and diff < 0) or
+            (currentWidth - diff < event.size().width() and diff > 0) or
+            event.oldSize().width() == -1):
             return
 
         self.resizing = True
