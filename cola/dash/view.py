@@ -18,9 +18,41 @@ class StatusTable(QtGui.QTableView):
         self.verticalHeader().hide()
         self.horizontalHeader().setResizeMode(QtGui.QHeaderView.Interactive)
         self.horizontalHeader().setCascadingSectionResizes(False)
-        self.horizontalHeader().setStretchLastSection(True)
+        self.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
         self.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.setAlternatingRowColors(True)
+        self.horizontalHeader().setStretchLastSection(False)
+        self.initialFirstSize = -1
+        self.resizing = False
+        self.connect(self.horizontalHeader(), SIGNAL('sectionResized(int, int, int)'), self.horizontal_section_resized);
+
+    def resizeEvent(self, event):
+        header = self.horizontalHeader();
+        currentWidth = sum([header.sectionSize(i) for i in range(header.count())]) + (self.frameWidth())
+
+        QtGui.QTableView.resizeEvent(self, event)
+
+        if (self.initialFirstSize == -1):
+            self.initialFirstSize = header.sectionSize(0)
+
+        diff = event.oldSize().width() - event.size().width()
+
+        if (currentWidth >= event.size().width() and diff < 0):
+            return
+        if (diff > 0 and currentWidth - diff < event.size().width()):
+            return
+
+        self.resizing = True
+        firstSize = self.horizontalHeader().sectionSize(0)
+        self.horizontalHeader().resizeSection(0, max(firstSize - diff, self.initialFirstSize))
+
+        self.update()
+        self.resizing = False
+
+    def horizontal_section_resized(self, index, oldSize, newSize):
+        if (self.resizing or index != 0):
+            return
+        self.initialFirstSize = newSize
 
 class DashboardView(standard.Widget):
     def __init__(self, model, parent=None):
