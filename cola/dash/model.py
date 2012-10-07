@@ -135,12 +135,12 @@ class DashboardModel(QtCore.QAbstractTableModel):
             return -1
 
         index = len(self._repos)
-        self.emit(SIGNAL("rowsAboutToBeInserted(QModelIndex, int, int)"), QModelIndex(), index, index)
+        self.beginInsertRows(QModelIndex(), index, index)
         self._repos.append(DashboardRepo(directory))
         if (load_status):
             self._load_status(self._repos[index])
 
-        self.emit(SIGNAL("rowsInserted(QModelIndex, int, int)"), QModelIndex(), index, index)
+        self.endInsertRows()
         return index
 
     def update(self, row):
