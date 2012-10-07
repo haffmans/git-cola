@@ -83,10 +83,13 @@ class DashboardView(standard.Widget):
         self._update_queue = deque()
 
     def apply_state(self, state):
-        if (state['horizontalHeader']):
-            self._table.horizontalHeader().restoreState(
-                QtCore.QByteArray.fromBase64(str(state['horizontalHeader']))
-            )
+        try:
+            if (state['horizontalHeader']):
+                self._table.horizontalHeader().restoreState(
+                    QtCore.QByteArray.fromBase64(str(state['horizontalHeader']))
+                )
+        except:
+            pass
 
     def export_state(self):
         return {
