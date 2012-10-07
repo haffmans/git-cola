@@ -71,13 +71,11 @@ class Git(object):
         else:
             curdir = os.getcwd()
 
-        if is_git_dir(os.path.join(curdir, '.git')):
+        if (is_git_dir(os.path.join(curdir, '.git')) or
+           # Handle bare repositories
+           (os.path.basename(curdir) != '.git' and is_git_dir(curdir))):
             return curdir
 
-        # Handle bare repositories
-        if (len(os.path.basename(curdir)) > 4
-                and curdir.endswith('.git')):
-            return curdir
         if 'GIT_WORK_TREE' in os.environ:
             self._worktree = os.getenv('GIT_WORK_TREE')
         if not self._worktree or not os.path.isdir(self._worktree):
