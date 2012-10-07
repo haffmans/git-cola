@@ -64,12 +64,6 @@ class DashboardView(standard.Widget):
         self._model = model
         self._table = StatusTable(self._model)
 
-        # Init model
-        self._settingsModel = settings.Settings()
-        for bookmark in self._settingsModel.bookmarks:
-            # Delay updating to after show()
-            self._model.add_repo(bookmark, False)
-
         # Init table
         self.connect(self._table, SIGNAL('activated(QModelIndex)'), self.open_bookmark)
 

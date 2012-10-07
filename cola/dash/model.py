@@ -8,14 +8,19 @@ from PyQt4.QtCore import QModelIndex
 from cola import git
 from cola import gitcfg
 from cola import gitcmds
+from cola import settings
 
 class DashboardModel(QtCore.QAbstractTableModel):
     def __init__(self, parent=None):
         QtCore.QAbstractTableModel.__init__(self, parent)
+        self._storage = settings.Settings()
         self._repos = list()
 
         # Initialize the git command object
         self._git = git.instance()
+
+        for bookmark in self._storage.bookmarks:
+            self._repos.append(DashboardRepo(bookmark))
 
     def rowCount(self, parent=QModelIndex()):
         return len(self._repos)
@@ -100,6 +105,11 @@ class DashboardModel(QtCore.QAbstractTableModel):
         self.emit("modelAboutToBeReset()")
         del self._repos[:]
         self.emit("modelReset()")
+
+    def save(self):
+        del self._storage.bookmarks[:]
+        self._storage.bookmarks.extend([ r.directory for r in self._repos ])
+        self._storage.save()
 
     def add_repo(self, directory, load_status=True):
         """ Adds a new repository to the model (by directory) and returns the row number.
