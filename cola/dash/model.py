@@ -145,10 +145,16 @@ class DashboardModel(QtCore.QAbstractTableModel):
 
     def update(self, row):
         """ Update a repository's status at the given row. """
+        task = ActionTask(self._update, row)
+        QtCore.QThreadPool.globalInstance().start(task)
+
+    def _update(self, row):
         if (row < 0 or row >= len(self._repos)):
+            self.emit(SIGNAL('update_complete(int)'), row)
             return
         if self._load_status(self._repos[row]):
             self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), self.index(row, 1), self.index(row, self.columnCount()))
+        self.emit(SIGNAL('update_complete(int)'), row)
 
     def _set_worktree(self, repo, worktree=None):
         if (worktree is None):
@@ -168,6 +174,41 @@ class DashboardModel(QtCore.QAbstractTableModel):
         repo.upstream = status.get('upstream')
         repo.diff = int(status.get('amount')) if status.get('status') == 'ahead' else  - int(status.get('amount'))
         return True
+
+    def fetch(self, row):
+        task = ActionTask(self._fetch, row)
+        QtCore.QThreadPool.globalInstance().start(task)
+
+    def _fetch(self, row):
+        if (row < 0 or row >= len(self._repos)):
+            self.emit(SIGNAL('fetch_complete(int)'), row)
+            return False
+        repo = self._repos[row]
+        if (not repo.upstream):
+            self.emit(SIGNAL('fetch_complete(int)'), row)
+            return False
+        if not self._set_worktree(repo):
+            self.emit(SIGNAL('fetch_complete(int)'), row)
+            return False
+
+        repo.diff = '...'
+        self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), self.index(row, 3), self.index(row, 3))
+
+        # Call git fetch
+        (remote, refspec) = repo.upstream.split('/', 1)
+        self._git.fetch(remote, refspec)
+        self._update(row)
+        self.emit(SIGNAL('fetch_complete(int)'), row)
+
+class ActionTask(QtCore.QRunnable):
+    def __init__(self, method, row):
+        QtCore.QRunnable.__init__(self)
+        self.method = method
+        self.row = row
+
+    def run(self):
+        """Runs the model action and captures the result"""
+        self.method(self.row)
 
 class DashboardRepo:
     """ Simple structure representing a repository's status. """

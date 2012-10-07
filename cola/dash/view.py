@@ -4,6 +4,7 @@ from collections import deque
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 from PyQt4.QtCore import SIGNAL
+from PyQt4.QtCore import QThread
 from PyQt4.QtCore import QTimer
 
 from cola import qtutils
@@ -64,6 +65,10 @@ class DashboardView(standard.Widget):
         self._model = model
         self._table = StatusTable(self._model)
 
+        # Connect model results
+        self.connect(self._model, SIGNAL('update_complete(int)'), self.update_next)
+        self.connect(self._model, SIGNAL('fetch_complete(int)'), self.fetch_next)
+
         # Init table
         self.connect(self._table, SIGNAL('activated(QModelIndex)'), self.open_bookmark)
 
@@ -72,8 +77,13 @@ class DashboardView(standard.Widget):
         self._new_bookmark = QtGui.QPushButton(self.tr("New bookmark..."), self)
         self._new_bookmark.setIcon(qtutils.icon('add.svg'))
         self.connect(self._new_bookmark, SIGNAL('clicked()'), self.add_bookmark)
+        self._update_all = QtGui.QPushButton(self.tr("Fetch all..."), self)
+        self._update_all.setIcon(qtutils.icon('view-refresh.svg'))
+        self.connect(self._update_all, SIGNAL('clicked()'), self.fetch_all)
         self._actionlayt.addWidget(self._new_bookmark)
+        self._actionlayt.addWidget(self._update_all)
         self._actionlayt.setAlignment(self._new_bookmark, QtCore.Qt.AlignLeft)
+        self._actionlayt.setAlignment(self._update_all, QtCore.Qt.AlignRight)
 
         # Init layout
         self._layt.addLayout(self._actionlayt)
@@ -81,6 +91,7 @@ class DashboardView(standard.Widget):
         self.setLayout(self._layt)
 
         self._update_queue = deque()
+        self._fetch_queue = deque()
 
         self._last_open_dir = os.getcwd()
 
@@ -121,6 +132,10 @@ class DashboardView(standard.Widget):
         elif (index == -2):
             qtutils.information(self.tr("Add a bookmark"), self.tr("Directory is not a git repository"))
 
+    def fetch_all(self):
+        self._fetch_queue.clear()
+        self._fetch_queue.extend(range(self._model.rowCount()))
+        self.fetch_next()
 
     def open_bookmark(self, index):
         directory_index = index.sibling(index.row(), 0)
@@ -131,14 +146,19 @@ class DashboardView(standard.Widget):
         # Delay-load all repos
         self._update_queue.clear()
         self._update_queue.extend(range(self._model.rowCount()))
-        QTimer.singleShot(10, self.update_next)
+        self.update_next()
 
     def update_next(self):
         if (len(self._update_queue) == 0):
             return
         repo = self._update_queue.popleft()
         self._model.update(repo)
-        QTimer.singleShot(10, self.update_next)
+
+    def fetch_next(self):
+        if (len(self._fetch_queue) == 0):
+            return
+        repo = self._fetch_queue.popleft()
+        self._model.fetch(repo)
 
 if __name__ == "__main__":
     import sys
