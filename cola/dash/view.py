@@ -1,14 +1,17 @@
 import os
+import sys
 from collections import deque
 
 from PyQt4 import QtCore
 from PyQt4 import QtGui
+from PyQt4.QtCore import Qt
 from PyQt4.QtCore import SIGNAL
 from PyQt4.QtCore import QThread
 from PyQt4.QtCore import QTimer
 
 from cola import qtutils
 from cola import settings
+from cola import utils
 from cola.widgets import defs
 from cola.widgets import standard
 
@@ -26,6 +29,47 @@ class StatusTable(QtGui.QTableView):
         self.initialFirstSize = -1
         self.resizing = False
         self.connect(self.horizontalHeader(), SIGNAL('sectionResized(int, int, int)'), self.horizontal_section_resized);
+
+        self.setContextMenuPolicy(Qt.ActionsContextMenu)
+
+        openAction = QtGui.QAction(self.tr("Open"), self)
+        self.connect(openAction, SIGNAL('triggered()'), self.open_current)
+        self.addAction(openAction)
+
+        openNewAction = QtGui.QAction(self.tr("Open in new window"), self)
+        self.connect(openNewAction, SIGNAL('triggered()'), self.open_current_new)
+        self.addAction(openNewAction)
+
+        fetchUpstream = QtGui.QAction(self.tr("Fetch upstream"), self)
+        self.connect(fetchUpstream, SIGNAL('triggered()'), self.fetch_current)
+        self.addAction(fetchUpstream)
+
+        unbookmark = QtGui.QAction(self.tr("Delete bookmark"), self)
+        self.connect(unbookmark, SIGNAL('triggered()'), self.delete_current)
+        self.addAction(unbookmark)
+
+    def open_current(self):
+        if (len(self.selected_rows()) > 0):
+            row = self.selected_rows()[0]
+            self.emit(SIGNAL('open_bookmark(QString)'), self.repo_dir(row))
+
+    def open_current_new(self):
+        for row in self.selected_rows():
+            self.emit(SIGNAL('open_bookmark_new_window(QString)'), self.repo_dir(row))
+
+    def fetch_current(self):
+        for row in self.selected_rows():
+            self.emit(SIGNAL('fetch(QString)'), self.repo_dir(row))
+
+    def delete_current(self):
+        for row in self.selected_rows():
+            self.emit(SIGNAL('delete(QString)'), self.repo_dir(row))
+
+    def selected_rows(self):
+        return sorted(set([i.row() for i in self.selectedIndexes()]))
+
+    def repo_dir(self, row):
+        return self.model().data(self.model().index(row, 0)).toString()
 
     def resizeEvent(self, event):
         header = self.horizontalHeader();
@@ -71,6 +115,10 @@ class DashboardView(standard.Widget):
 
         # Init table
         self.connect(self._table, SIGNAL('activated(QModelIndex)'), self.open_bookmark)
+        self.connect(self._table, SIGNAL('open_bookmark(QString)'), SIGNAL('open(QString)'))
+        self.connect(self._table, SIGNAL('open_bookmark_new_window(QString)'), self.open_new_window)
+        self.connect(self._table, SIGNAL('fetch(QString)'), self.fetch)
+        self.connect(self._table, SIGNAL('delete(QString)'), self.delete_bookmark)
 
         # Action bar at top (buttons)
         self._actionlayt = QtGui.QHBoxLayout()
@@ -132,10 +180,26 @@ class DashboardView(standard.Widget):
         elif (index == -2):
             qtutils.information(self.tr("Add a bookmark"), self.tr("Directory is not a git repository"))
 
+
+    def delete_bookmark(self, directory):
+        self._model.delete_repo(directory)
+        self._model.save()
+
+    def open_new_window(self, directory):
+        utils.fork([sys.executable, sys.argv[0], '--repo', str(directory)])
+
     def fetch_all(self):
         self._fetch_queue.clear()
         self._fetch_queue.extend(range(self._model.rowCount()))
         self.fetch_next()
+
+    def fetch(self, repo):
+        row = self._model.row_of(str(repo))
+        if (row < 0 or any([r for r in self._fetch_queue if r == row])):
+            return
+        self._fetch_queue.append(row)
+        if (len(self._fetch_queue) == 1):
+            self.fetch_next()
 
     def open_bookmark(self, index):
         directory_index = index.sibling(index.row(), 0)

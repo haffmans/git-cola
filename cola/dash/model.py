@@ -143,6 +143,15 @@ class DashboardModel(QtCore.QAbstractTableModel):
         self.endInsertRows()
         return index
 
+    def delete_repo(self, directory):
+        for i in [ x for x in range(len(self._repos) - 1, -1, -1) if (self._repos[x].directory == directory) ]:
+            self.beginRemoveRows(QModelIndex(), i, i)
+            del self._repos[i]
+            self.endRemoveRows()
+
+    def row_of(self, directory):
+        return next((i for i, v in enumerate(self._repos) if v.directory == directory), -1)
+
     def update(self, row):
         """ Update a repository's status at the given row. """
         task = ActionTask(self._update, row)
