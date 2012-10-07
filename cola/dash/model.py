@@ -113,10 +113,27 @@ class DashboardModel(QtCore.QAbstractTableModel):
 
     def add_repo(self, directory, load_status=True):
         """ Adds a new repository to the model (by directory) and returns the row number.
+            The actual added directory may be a parent of the input; the root of
+            the git repository is detected and added.
 
-            The repository's data is not initialized; use update(row) to retrieve
-            the full status
+            Returns -1 if the directory is already added to the model. Returns
+            -2 if the directory is not a valid git repository.
         """
+
+        # Find git repository base
+        valid = False
+
+        # Check if git repo
+        self._git.set_worktree(directory)
+        if (not self._git.is_valid()):
+            return -2
+
+        directory = self._git.worktree()
+
+        # Check if already added
+        if (any([r.directory == directory for r in self._repos])):
+            return -1
+
         index = len(self._repos)
         self.emit(SIGNAL("rowsAboutToBeInserted(QModelIndex, int, int)"), QModelIndex(), index, index)
         self._repos.append(DashboardRepo(directory))

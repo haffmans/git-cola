@@ -67,7 +67,16 @@ class DashboardView(standard.Widget):
         # Init table
         self.connect(self._table, SIGNAL('activated(QModelIndex)'), self.open_bookmark)
 
+        # Action bar at top (buttons)
+        self._actionlayt = QtGui.QHBoxLayout()
+        self._new_bookmark = QtGui.QPushButton(self.tr("New bookmark..."), self)
+        self._new_bookmark.setIcon(qtutils.icon('add.svg'))
+        self.connect(self._new_bookmark, SIGNAL('clicked()'), self.add_bookmark)
+        self._actionlayt.addWidget(self._new_bookmark)
+        self._actionlayt.setAlignment(self._new_bookmark, QtCore.Qt.AlignLeft)
+
         # Init layout
+        self._layt.addLayout(self._actionlayt)
         self._layt.addWidget(self._table)
         self.setLayout(self._layt)
 
@@ -83,6 +92,20 @@ class DashboardView(standard.Widget):
         return {
             'horizontalHeader': unicode(self._table.horizontalHeader().saveState().toBase64().data())
         }
+
+    def add_bookmark(self):
+        path = qtutils.opendir_dialog(self.tr("Add a bookmark..."), os.getcwd())
+        if (len(path) == 0):
+            return
+        index = self._model.add_repo(path)
+
+        if (index >= 0):
+            self._model.save()
+        elif (index == -1):
+            qtutils.information(self.tr("Add a bookmark"), self.tr("Repository already bookmarked"))
+        elif (index == -2):
+            qtutils.information(self.tr("Add a bookmark"), self.tr("Directory is not a git repository"))
+
 
     def open_bookmark(self, index):
         directory_index = index.sibling(index.row(), 0)
