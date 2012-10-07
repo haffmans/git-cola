@@ -147,8 +147,8 @@ class DashboardModel(QtCore.QAbstractTableModel):
         """ Update a repository's status at the given row. """
         if (row < 0 or row >= len(self._repos)):
             return
-        self._load_status(self._repos[row])
-        self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex'), self.index(row, 1), self.index(row, self.columnCount()))
+        if self._load_status(self._repos[row]):
+            self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), self.index(row, 1), self.index(row, self.columnCount()))
 
     def _set_worktree(self, repo, worktree=None):
         if (worktree is None):
@@ -162,9 +162,12 @@ class DashboardModel(QtCore.QAbstractTableModel):
 
         gitcfg.instance().reset()
         status = gitcmds.head_tracking_status()
+        if (status is None):
+            return False
         repo.branch = status.get('head')
         repo.upstream = status.get('upstream')
         repo.diff = int(status.get('amount')) if status.get('status') == 'ahead' else  - int(status.get('amount'))
+        return True
 
 class DashboardRepo:
     """ Simple structure representing a repository's status. """
