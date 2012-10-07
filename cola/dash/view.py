@@ -138,7 +138,9 @@ class DashboardView(standard.Widget):
         self._layt.addWidget(self._table)
         self.setLayout(self._layt)
 
+        self._update_running = False
         self._update_queue = deque()
+        self._fetch_running = False
         self._fetch_queue = deque()
 
         self._last_open_dir = os.getcwd()
@@ -198,7 +200,7 @@ class DashboardView(standard.Widget):
         if (row < 0 or any([r for r in self._fetch_queue if r == row])):
             return
         self._fetch_queue.append(row)
-        if (len(self._fetch_queue) == 1):
+        if (not self._fetch_running):
             self.fetch_next()
 
     def open_bookmark(self, index):
@@ -214,13 +216,17 @@ class DashboardView(standard.Widget):
 
     def update_next(self):
         if (len(self._update_queue) == 0):
+            self._update_running = False
             return
+        self._update_running = True
         repo = self._update_queue.popleft()
         self._model.update(repo)
 
     def fetch_next(self):
         if (len(self._fetch_queue) == 0):
+            self._fetch_running = False
             return
+        self._fetch_running = True
         repo = self._fetch_queue.popleft()
         self._model.fetch(repo)
 
