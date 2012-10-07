@@ -405,6 +405,9 @@ def head_tracking_status():
     """, re.VERBOSE)
     m = p.match(data);
 
+    if (m is None):
+        return None
+
     # If amount == 0, upstream is not given in output -- get it manually
     upstream = ''
     if (m.group('upstream') is not None and m.group('amount') is not None and m.group('amount') != '0'):
