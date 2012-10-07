@@ -82,6 +82,8 @@ class DashboardView(standard.Widget):
 
         self._update_queue = deque()
 
+        self._last_open_dir = os.getcwd()
+
     def apply_state(self, state):
         try:
             if (state['horizontalHeader']):
@@ -91,18 +93,28 @@ class DashboardView(standard.Widget):
         except:
             pass
 
+        try:
+            if (state['last_open_dir'] and os.path.isdir(state['last_open_dir'])):
+                self._last_open_dir = state['last_open_dir']
+        except:
+            pass
+
     def export_state(self):
         return {
-            'horizontalHeader': unicode(self._table.horizontalHeader().saveState().toBase64().data())
+            'horizontalHeader': unicode(self._table.horizontalHeader().saveState().toBase64().data()),
+            'last_open_dir': self._last_open_dir,
         }
 
     def add_bookmark(self):
-        path = qtutils.opendir_dialog(self.tr("Add a bookmark..."), os.getcwd())
+        path = qtutils.opendir_dialog(self.tr("Add a bookmark..."), self._last_open_dir)
         if (len(path) == 0):
             return
         index = self._model.add_repo(path)
 
         if (index >= 0):
+            # Get final directory
+            path = str(self._model.data(self._model.index(index, 0)).toString())
+            self._last_open_dir = os.path.dirname(path)
             self._model.save()
         elif (index == -1):
             qtutils.information(self.tr("Add a bookmark"), self.tr("Repository already bookmarked"))
