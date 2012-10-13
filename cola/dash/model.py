@@ -92,13 +92,27 @@ class DashboardModel(QtCore.QAbstractTableModel):
                 if (repo.diff == '...'):
                     return QVariant()
                 elif (repo.diff > 0):
-                    return QtGui.QBrush(Qt.green)
+                    # Green
+                    return QtGui.QBrush(self._compute_color(120/360.0, 1, 1, index.row()))
                 elif (repo.diff < 0):
-                    return QtGui.QBrush(Qt.red)
+                    # Red
+                    return QtGui.QBrush(self._compute_color(0/360.0, 1, 1, index.row()))
                 else:
-                    return QtGui.QBrush(Qt.yellow)
+                    # Yellow
+                    return QtGui.QBrush(self._compute_color(60/360.0, 1, 1, index.row()))
 
         return QVariant()
+
+    def _compute_color(self, hue, saturation, alpha, row):
+        palette = QtGui.QPalette()
+        background = palette.color(QtGui.QPalette.Base).toHsl() if (row % 2 == 0) else palette.color(QtGui.QPalette.AlternateBase).toHsl()
+        if (background.lightnessF() <= .50):
+            # .50-.75
+            light = max(.50, .50 + ((background.lightnessF()-.25)/1.2))
+        else:
+            light = min(.25, .125 + ((background.lightnessF()-.5)/2.5))
+
+        return QtGui.QColor.fromHslF(hue, saturation, light, alpha)
 
     def clear(self):
         """ Remove all repositories from the model. """
