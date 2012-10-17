@@ -101,8 +101,11 @@ class StartupDialog(Dialog):
         """Imports data for save/restore"""
         # 1 is the widget version; change when widgets are added/removed
         Dialog.apply_state(self, state)
-        if (state['bookmark_list']):
-            self._bookmark_list.apply_state(state['bookmark_list'])
+        try:
+            if (state['bookmark_list']):
+                self._bookmark_list.apply_state(state['bookmark_list'])
+        except:
+            pass
 
     def export_state(self):
         """Exports data for save/restore"""
