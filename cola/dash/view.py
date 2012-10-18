@@ -22,7 +22,7 @@ class StatusTable(QtGui.QTableView):
         self.verticalHeader().hide()
         self.horizontalHeader().setResizeMode(QtGui.QHeaderView.Interactive)
         self.horizontalHeader().setCascadingSectionResizes(False)
-        self.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        self.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.setAlternatingRowColors(True)
         self.horizontalHeader().setStretchLastSection(False)
