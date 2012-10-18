@@ -223,6 +223,9 @@ class DashboardModel(QtCore.QAbstractTableModel):
         self._update(row)
         self.emit(SIGNAL('fetch_complete(int)'), row)
 
+    def abort_tasks(self):
+        QtCore.QThreadPool.globalInstance().waitForDone()
+
 class ActionTask(QtCore.QRunnable):
     def __init__(self, method, row):
         QtCore.QRunnable.__init__(self)

@@ -32,21 +32,21 @@ class StatusTable(QtGui.QTableView):
 
         self.setContextMenuPolicy(Qt.ActionsContextMenu)
 
-        openAction = QtGui.QAction(self.tr("Open"), self)
-        self.connect(openAction, SIGNAL('triggered()'), self.open_current)
-        self.addAction(openAction)
+        self._openAction = QtGui.QAction(self.tr("Open"), self)
+        self.connect(self._openAction, SIGNAL('triggered()'), self.open_current)
+        self.addAction(self._openAction)
 
-        openNewAction = QtGui.QAction(self.tr("Open in new window"), self)
-        self.connect(openNewAction, SIGNAL('triggered()'), self.open_current_new)
-        self.addAction(openNewAction)
+        self._openNewAction = QtGui.QAction(self.tr("Open in new window"), self)
+        self.connect(self._openNewAction, SIGNAL('triggered()'), self.open_current_new)
+        self.addAction(self._openNewAction)
 
-        fetchUpstream = QtGui.QAction(self.tr("Fetch upstream"), self)
-        self.connect(fetchUpstream, SIGNAL('triggered()'), self.fetch_current)
-        self.addAction(fetchUpstream)
+        self._fetch_upstream = QtGui.QAction(self.tr("Fetch upstream"), self)
+        self.connect(self._fetch_upstream, SIGNAL('triggered()'), self.fetch_current)
+        self.addAction(self._fetch_upstream)
 
-        unbookmark = QtGui.QAction(self.tr("Delete bookmark"), self)
-        self.connect(unbookmark, SIGNAL('triggered()'), self.delete_current)
-        self.addAction(unbookmark)
+        self._unbookmark = QtGui.QAction(self.tr("Delete bookmark"), self)
+        self.connect(self._unbookmark, SIGNAL('triggered()'), self.delete_current)
+        self.addAction(self._unbookmark)
 
     def open_current(self):
         if (len(self.selected_rows()) > 0):
@@ -98,6 +98,10 @@ class StatusTable(QtGui.QTableView):
         if (self.resizing or index != 0):
             return
         self.initialFirstSize = newSize
+
+    def set_actions_enabled(self, enabled):
+        self._fetch_upstream.setEnabled(enabled)
+        self._unbookmark.setEnabled(enabled)
 
 class DashboardView(standard.Widget):
     def __init__(self, model, parent=None):
@@ -170,18 +174,23 @@ class DashboardView(standard.Widget):
         path = qtutils.opendir_dialog(self.tr("Add a bookmark..."), self._last_open_dir)
         if (len(path) == 0):
             return
-        index = self._model.add_repo(path)
+        index = self._model.add_repo(path, False)
 
         if (index >= 0):
             # Get final directory
             path = str(self._model.data(self._model.index(index, 0)).toString())
             self._last_open_dir = os.path.dirname(path)
             self._model.save()
+
+            # Update row
+            self._update_queue.append(index)
+            if (not self._update_running):
+                self.update_next()
+
         elif (index == -1):
             qtutils.information(self.tr("Add a bookmark"), self.tr("Repository already bookmarked"))
         elif (index == -2):
             qtutils.information(self.tr("Add a bookmark"), self.tr("Directory is not a git repository"))
-
 
     def delete_bookmark(self, directory):
         self._model.delete_repo(directory)
@@ -204,6 +213,7 @@ class DashboardView(standard.Widget):
             self.fetch_next()
 
     def open_bookmark(self, index):
+        self.abort_tasks()
         directory_index = index.sibling(index.row(), 0)
         directory = self._model.data(directory_index).toString()
         self.emit(SIGNAL('open(QString)'), directory)
@@ -217,18 +227,34 @@ class DashboardView(standard.Widget):
     def update_next(self):
         if (len(self._update_queue) == 0):
             self._update_running = False
+            self.enable_actions()
             return
         self._update_running = True
+        self.enable_actions()
         repo = self._update_queue.popleft()
         self._model.update(repo)
 
     def fetch_next(self):
         if (len(self._fetch_queue) == 0):
             self._fetch_running = False
+            self.enable_actions()
             return
         self._fetch_running = True
+        self.enable_actions()
         repo = self._fetch_queue.popleft()
         self._model.fetch(repo)
+
+    def enable_actions(self):
+        enabled = (not (self._update_running or self._fetch_running))
+        self._new_bookmark.setEnabled(enabled)
+        self._update_all.setEnabled(enabled)
+        self._table.set_actions_enabled(enabled)
+
+    def abort_tasks(self):
+        self._update_queue.clear()
+        self._fetch_queue.clear()
+        self._model.abort_tasks()
+
 
 if __name__ == "__main__":
     import sys
