@@ -28,24 +28,29 @@ class StatusTable(QtGui.QTableView):
         self.horizontalHeader().setStretchLastSection(False)
         self.initialFirstSize = -1
         self.resizing = False
+        self.actions_enabled = True
         self.connect(self.horizontalHeader(), SIGNAL('sectionResized(int, int, int)'), self.horizontal_section_resized);
 
         self.setContextMenuPolicy(Qt.ActionsContextMenu)
 
         self._openAction = QtGui.QAction(self.tr("Open"), self)
+        self._openAction.setShortcut(QtCore.Qt.Key_Enter)
         self.connect(self._openAction, SIGNAL('triggered()'), self.open_current)
         self.addAction(self._openAction)
 
         self._openNewAction = QtGui.QAction(self.tr("Open in new window"), self)
+        self._openNewAction.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL | QtCore.Qt.Key_Enter))
         self.connect(self._openNewAction, SIGNAL('triggered()'), self.open_current_new)
         self.addAction(self._openNewAction)
 
         self._fetch_upstream = QtGui.QAction(self.tr("Fetch upstream"), self)
+        self._fetch_upstream.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL | QtCore.Qt.Key_F))
         self.connect(self._fetch_upstream, SIGNAL('triggered()'), self.fetch_current)
         self.addAction(self._fetch_upstream)
 
         self._unbookmark = QtGui.QAction(self.tr("Delete bookmark"), self)
-        self.connect(self._unbookmark, SIGNAL('triggered()'), self.delete_current)
+        self._unbookmark.setShortcut(QtCore.Qt.Key_Delete)
+        self.connect(self._unbookmark, SIGNAL('triggered()'), self.confirm_delete_current)
         self.addAction(self._unbookmark)
 
     def open_current(self):
@@ -60,6 +65,15 @@ class StatusTable(QtGui.QTableView):
     def fetch_current(self):
         for row in self.selected_rows():
             self.emit(SIGNAL('fetch(QString)'), self.repo_dir(row))
+
+    def confirm_delete_current(self):
+        message = self.tr("Are you sure you want to remove this bookmark?")
+        if len(self.selected_rows()) > 1:
+            message = self.tr("Are you sure you want to remove these bookmarks?")
+
+        repos = '\n'.join([ str(self.repo_dir(row)) for row in self.selected_rows()])
+        if (qtutils.confirm(self.tr("Delete bookmark"), message, repos, self.tr("Yes"), None, False)):
+            delete_current()
 
     def delete_current(self):
         for row in self.selected_rows():
@@ -99,7 +113,15 @@ class StatusTable(QtGui.QTableView):
             return
         self.initialFirstSize = newSize
 
+    def selectionChanged(self, selected, deselected):
+        QtGui.QTableView.selectionChanged(self, selected, deselected)
+        enabled = (self.actions_enabled and
+            any([not self.model().data(self.model().index(row, 2)).toString().isEmpty()
+                 for row in self.selected_rows()]))
+        self._fetch_upstream.setEnabled(enabled)
+
     def set_actions_enabled(self, enabled):
+        self.actions_enabled = enabled
         self._fetch_upstream.setEnabled(enabled)
         self._unbookmark.setEnabled(enabled)
 
